@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="app-repo" content="neon-strike">
-<meta name="app-version" content="0.0.6">
+<meta name="app-version" content="0.0.7">
 <meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -236,11 +236,11 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;touch-actio
   </div>
 </div>
 
-<div id="ver">v0.0.6</div>
+<div id="ver">v0.0.7</div>
 <script>
 'use strict';
 /* ================= NEON STRIKE — core: utils, maths, WebGL plumbing ================= */
-const VERSION = '0.0.6';
+const VERSION = '0.0.7';
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -1909,11 +1909,12 @@ function curScore() { const t = frameTotals(G.frames); let s = 0; for (const v o
 
 /* ---------- camera presets ---------- */
 function camAim(snap) {
-  if (G.inSuper) { const s = G.sup; CAM.wEye = [G.aimX * .4, 2.4 + s.rows * .045, -3.4]; CAM.wTgt = [0, 0, s.z0 + s.depth * .35]; }
-  else { CAM.wEye = [G.aimX * .55, 1.22, -2.9]; CAM.wTgt = [G.aimX * .2, .1, 11]; }
+  if (G.inSuper) { const s = G.sup; CAM.wEye = [G.aimX * .3, 3.4 + s.rows * .085, -4.6 - s.rows * .05]; CAM.wTgt = [0, 0, s.z0 + s.depth * .2]; CAM.wShift = .16; }
+  else { CAM.wShift = 0; CAM.wEye = [G.aimX * .55, 1.22, -2.9]; CAM.wTgt = [G.aimX * .2, .1, 11]; }
   CAM.k = 3.5; if (snap) camSnap();
 }
 function camRoll() {
+  CAM.wShift = G.inSuper ? .2 : 0;
   if (G.inSuper) {
     const s = G.sup, z = clamp(ball.z - 4.2, -3.4, s.z0 + s.depth * .3);
     CAM.wEye = [ball.x * .5, 2.6 + s.rows * .05, z]; CAM.wTgt = [ball.x * .4, 0, Math.max(ball.z + 5, s.z0 + 3)]; CAM.k = 3; return;
@@ -2132,7 +2133,7 @@ function superStart() {
   tween(.9, k => { const e = easeInOut(k); WORLD.hw = lerp(hw0, hw1, e); WORLD.end = lerp(end0, end1, e); });
   wait(.45, () => { rackTriangle(rows, z0, sp, true); for (let i = 0; i < PINS.n; i++) PINS.drop[i] = .2 + (PINS.z[i] - z0) * .06 + Math.random() * .3; });
   G.setPhase('superIntro'); G.aimX = 0;
-  CAM.wEye = [0, 3 + rows * .07, -3.5]; CAM.wTgt = [0, 0, z0 + G.sup.depth * .4]; CAM.k = 2;
+  CAM.wEye = [0, 3.4 + rows * .085, -4.6 - rows * .05]; CAM.wTgt = [0, 0, z0 + G.sup.depth * .2]; CAM.wShift = .16; CAM.k = 2;
   wait(2.3, () => { beginAim(); });
 }
 function superLive(dt) {
