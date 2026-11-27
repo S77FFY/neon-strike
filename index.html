@@ -1,10 +1,15 @@
 <!doctype html>
+<!--
+  NEON STRIKE
+  Copyright (c) 2026 Ben Stiff @ Room46.uk. All rights reserved.
+  This game and its code may not be copied, modified, rehosted or redistributed without written permission.
+-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="app-repo" content="neon-strike">
-<meta name="app-version" content="0.0.7">
+<meta name="app-version" content="0.0.8">
 <meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -21,7 +26,7 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;touch-actio
 .chip{display:inline-block;width:1.1em;height:1.1em;border-radius:50%;vertical-align:-.18em;flex:none;background:radial-gradient(circle,#1a0626 0 33%,#c77dff 34% 40%,#1a0626 41% 56%,transparent 57%),repeating-conic-gradient(#b35cff 0 15deg,#0d0014 15deg 30deg);box-shadow:0 0 7px rgba(179,92,255,.85),inset 0 0 0 1.5px #0d0014}
 
 /* ---------- HUD ---------- */
-#hud{position:fixed;inset:0;pointer-events:none;padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
+#hud{position:fixed;inset:0;pointer-events:none;padding:calc(env(safe-area-inset-top) + 13px) max(8px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
 #sheet{display:grid;grid-template-columns:repeat(9,1fr) 1.4fr;gap:3px}
 .fr{position:relative;height:42px;border:1px solid rgba(46,243,255,.3);background:rgba(3,6,18,.62);border-radius:6px;display:flex;flex-direction:column;overflow:hidden}
 .fr.cur{border-color:var(--m);box-shadow:0 0 10px rgba(255,43,214,.55),inset 0 0 8px rgba(255,43,214,.25)}
@@ -161,7 +166,7 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;touch-actio
 @keyframes tswipe{0%{transform:translate(0,0) scale(1);opacity:0}12%{opacity:1}80%{transform:translate(10px,-240px) scale(.8);opacity:1}100%{transform:translate(12px,-260px) scale(.75);opacity:0}}
 .f-none{display:none}
 #ver{position:fixed;right:max(8px,env(safe-area-inset-right));bottom:max(4px,env(safe-area-inset-bottom));font-size:9px;opacity:.35;letter-spacing:.1em;pointer-events:none;z-index:50}
-#err{position:fixed;inset:20px;color:#ff9aa8;font:12px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;overflow:auto;z-index:99;background:rgba(0,0,0,.85);padding:12px;border:1px solid #f36}
+#err{position:fixed;left:16px;right:16px;bottom:max(16px,env(safe-area-inset-bottom));max-height:40vh;color:#ff9aa8;font:12px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;overflow:auto;z-index:99;background:rgba(0,0,0,.85);padding:12px;border:1px solid #f36}
 </style>
 </head>
 <body>
@@ -236,11 +241,19 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;touch-actio
   </div>
 </div>
 
-<div id="ver">v0.0.7</div>
+<div id="safeProbe" style="position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top);pointer-events:none"></div>
+<div id="ver">v0.0.8</div>
 <script>
 'use strict';
+/* NEON STRIKE — Copyright (c) 2026 Ben Stiff @ Room46.uk. All rights reserved.
+   No copying, modification, rehosting or redistribution without written permission. */
+const VERSION_TAG = 'NS\u00b7Ben Stiff @ Room46.uk\u00b70.0.8\u00b72026-11-27\u00b7n5k-7r4q';
+/* Domain lock (opt-in): set LOCK_HOST (e.g. 's77ffy.github.io') and HOME_URL to show an
+   "unofficial copy" screen on any other host. file:// and localhost are always allowed. */
+const LOCK_HOST = '';
+const HOME_URL = '';
 /* ================= NEON STRIKE — core: utils, maths, WebGL plumbing ================= */
-const VERSION = '0.0.7';
+const VERSION = '0.0.8';
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -253,9 +266,18 @@ const easeInOut = t => { t = clamp(t, 0, 1); return t < .5 ? 4 * t * t * t : 1 -
 function fatal(e) {
   const d = document.createElement('div'); d.id = 'err';
   d.textContent = 'NEON STRIKE v' + VERSION + ' hit a problem:\n\n' + (e && (e.stack || e.message) || e);
+  d.addEventListener('click', () => d.remove());
   document.body.appendChild(d);
 }
-window.addEventListener('error', ev => { if (!$('err')) fatal(ev.error || ev.message); });
+/* Only report errors from this game. Browsers, in-app web views and extensions inject their own
+   scripts; their failures arrive as an anonymous "Script error." and must not stop the game. */
+const OWN_URL = location.href.split(/[?#]/)[0];
+window.addEventListener('error', ev => {
+  if (!ev.error || /^script error/i.test(ev.message || '')) { console.warn('ignored external error', ev.message); return; }
+  if (ev.filename && ev.filename.split(/[?#]/)[0] !== OWN_URL) { console.warn('ignored external error', ev.filename); return; }
+  if (!$('err')) fatal(ev.error);
+});
+window.addEventListener('unhandledrejection', ev => console.warn('unhandled rejection', ev.reason));
 
 /* ---------- 4x4 matrices (column-major) ---------- */
 const M4 = {
@@ -1126,41 +1148,63 @@ function buildPrograms() {
   PR.comp = program(VS_FULL, FS_COMP, 'comp');
 }
 
-/* ================= AUDIO: procedural EDM per dimension + sound effects ================= */
+/* ================= AUDIO: procedural EDM per dimension + sound effects =================
+   The Alley plays a slow lo-fi lounge groove (86 bpm). The glitch powers it down and drops
+   straight into the neon tracks, which run as real EDM arrangements:
+   DROP (16 bars) -> BREAKDOWN (8 bars) -> BUILD (4 bars, snare roll + riser) -> DROP ...   */
 const SCALES = { maj: [0, 2, 4, 5, 7, 9, 11], min: [0, 2, 3, 5, 7, 8, 10], dor: [0, 2, 3, 5, 7, 9, 10], phr: [0, 1, 3, 5, 7, 8, 10], hmin: [0, 2, 3, 5, 7, 8, 11] };
 const TRACKS = [
-  { name: 'jukebox lounge', bpm: 112, root: 57, sc: 'maj', prog: [0, 5, 3, 4], k: 'x...x...x...x...', c: '....x.......x...', h: '..x...x...x...x.', hh: '', b: '0..0..5.0..0..5.', a: '0.1.2.1.0.1.2.1.', pad: .5, bass: 'sub', lead: 'keys', cut: 2400, vol: .55, kv: .5 },
-  { name: 'electro house', bpm: 124, root: 45, sc: 'min', prog: [0, 5, 2, 6], k: 'x...x...x...x...', c: '....x.......x...', h: '..x...x...x...x.', hh: 'xxxxxxxxxxxxxxxx', b: '..0...0...0...0.', a: '0.2.1.3.0.2.1.3.', pad: .7, bass: 'saw', lead: 'pluck', cut: 9000, vol: .8, kv: 1 },
-  { name: 'trance', bpm: 138, root: 50, sc: 'min', prog: [0, 5, 6, 4], k: 'x...x...x...x...', c: '....x.......x...', h: '..x...x...x...x.', hh: 'x.x.x.x.x.x.x.x.', b: '.000.000.000.000', a: '0123321001233210', pad: 1, bass: 'saw', lead: 'pluck', cut: 12000, vol: .8, kv: 1 },
-  { name: 'progressive', bpm: 122, root: 48, sc: 'dor', prog: [0, 3, 5, 4], k: 'x...x...x...x...', c: '....x.......x...', h: '..x...x...x...x.', hh: '..x...x...x...x.', b: '0...0.0...0.0...', a: '0..2..1..3..2..1', pad: 1, bass: 'saw', lead: 'bell', cut: 10000, vol: .8, kv: .95 },
-  { name: 'acid techno', bpm: 132, root: 43, sc: 'phr', prog: [0, 0, 1, 0], k: 'x...x...x...x...', c: '....x.......x...', h: '..x...x...x...x.', hh: 'xxxxxxxxxxxxxxxx', b: '0.0o.05.0.o0.5.0', a: '', pad: 0, bass: 'acid', lead: 'pluck', cut: 12000, vol: .8, kv: 1.05 },
-  { name: 'drum & bass', bpm: 174, root: 38, sc: 'min', prog: [0, 5, 2, 6], k: 'x.........x.....', c: '....x.......x...', h: '', hh: 'x.x.x.x.x.x.xxx.', b: '0.......0...5...', a: '0...2...1...3...', pad: .8, bass: 'reese', lead: 'bell', cut: 12000, vol: .8, kv: 1 },
-  { name: 'cosmic halftime', bpm: 140, root: 41, sc: 'hmin', prog: [0, 5, 3, 4], k: 'x.......x.x.....', c: '........x.......', h: '..x...x...x...x.', hh: 'x.x.x.x.x.x.x.x.', b: '0.......0...o...', a: '0.1.2.3.2.1.0.1.', pad: 1, bass: 'reese', lead: 'bell', cut: 12000, vol: .85, kv: 1.1 }
+  { name: 'alley lounge', style: 'chill', bpm: 86, root: 57, sc: 'dor', prog: [0, 3, 5, 4], swing: .2, vol: .85, cut: 2600,
+    k: 'x.....x...x.....', c: '....x.......x...', hh: 'x.x.x.x.x.x.x.x.', oh: '', b: '0.....0...5.....', lead: '..4...3...2.....', stab: '' },
+  { name: 'electro house', style: 'electro', bpm: 126, root: 45, sc: 'min', prog: [0, 5, 2, 6], vol: .8, cut: 16000,
+    k: 'x...x...x...x...', c: '....x.......x...', hh: '..x...x...x...x.', oh: '..x...x...x...x.', b: '..0...0...0...0o', lead: '0..2..3..4.3.2..', stab: '..x..x....x..x..' },
+  { name: 'trance', style: 'trance', bpm: 138, root: 50, sc: 'min', prog: [0, 5, 6, 4], vol: .8, cut: 18000,
+    k: 'x...x...x...x...', c: '....x.......x...', hh: 'xxxxxxxxxxxxxxxx', oh: '..x...x...x...x.', b: '.00o.00o.00o.00o', lead: '0.3.2.3.0.3.2.4.', stab: 'x.xx.xx.x.xx.xx.' },
+  { name: 'progressive', style: 'prog', bpm: 124, root: 48, sc: 'dor', prog: [0, 3, 5, 4], vol: .8, cut: 16000,
+    k: 'x...x...x...x...', c: '....x.......x...', hh: '..x...x...x...x.', oh: '..x...x...x...x.', b: '..0...0o..0...05', lead: '4...3...2..30...', stab: '..x...x...x...x.' },
+  { name: 'acid techno', style: 'acid', bpm: 130, root: 43, sc: 'phr', prog: [0, 0, 1, 0], vol: .8, cut: 18000,
+    k: 'x...x...x...x...', c: '....x.......x...', hh: 'xxxxxxxxxxxxxxxx', oh: '..x...x...x...x.', b: '0.0o.05.0.o0.5.0', lead: '3.......2.......', stab: '' },
+  { name: 'drum & bass', style: 'dnb', bpm: 174, root: 38, sc: 'min', prog: [0, 5, 2, 6], vol: .8, cut: 18000,
+    k: 'x.........x.....', c: '....x.......x...', hh: 'x.x.x.x.x.x.xxx.', oh: '', b: '0.......0...5...', lead: '4.....3.2.....0.', stab: '' },
+  { name: 'big room', style: 'bigroom', bpm: 128, root: 41, sc: 'hmin', prog: [0, 5, 3, 4], vol: .85, cut: 18000,
+    k: 'x...x...x...x...', c: '....x.......x...', hh: 'x.x.x.x.x.x.x.x.', oh: '..x...x...x...x.', b: '..0...0...0...0.', lead: '0.0.3.0.4.3.2...', stab: '..x...x...x...x.' }
 ];
 const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 
 const AU = {
-  ctx: null, on: true, ready: false, step: 0, nextT: 0, ti: 1, pendingTi: null, intensity: 0, kicks: [], lastKick: -9, acid: 0,
+  ctx: null, on: true, ready: false, step: 0, bar: 0, nextT: 0, ti: 0, pendingTi: null, intensity: 0, kicks: [], lastKick: -9, muffled: false,
   init() {
     if (this.ctx) { this.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
-    const c = this.ctx = new AC();
-    const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0);
+    let c; try { c = this.ctx = new AC(); } catch (e) { return; }
+    const nb = c.createBuffer(1, c.sampleRate * 2, c.sampleRate), d = nb.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     this.noiseBuf = nb;
-    this.master = c.createGain(); this.master.gain.value = this.on ? .9 : 0;
-    const comp = c.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4; comp.attack.value = .004; comp.release.value = .2;
+    /* master: soft limiter */
+    this.master = c.createGain(); this.master.gain.value = this.on ? .68 : 0;
+    const comp = c.createDynamicsCompressor(); comp.threshold.value = -12; comp.knee.value = 6; comp.ratio.value = 10; comp.attack.value = .003; comp.release.value = .18;
     this.master.connect(comp).connect(c.destination);
-    this.mfilt = c.createBiquadFilter(); this.mfilt.type = 'lowpass'; this.mfilt.frequency.value = 12000; this.mfilt.Q.value = .7;
+    /* reverb send (generated impulse) */
+    this.verb = c.createConvolver(); this.verb.buffer = this.impulse(2.6, 2.8);
+    this.verbIn = c.createGain(); this.verbIn.gain.value = .9; this.verbIn.connect(this.verb); this.verb.connect(this.master);
+    /* music bus: master filter (menus / pause) -> gain */
+    this.mfilt = c.createBiquadFilter(); this.mfilt.type = 'lowpass'; this.mfilt.frequency.value = 16000; this.mfilt.Q.value = .7;
     this.mgain = c.createGain(); this.mgain.gain.value = .8;
     this.mfilt.connect(this.mgain).connect(this.master);
     this.drums = c.createGain(); this.drums.connect(this.mfilt);
-    this.pump = c.createGain(); this.pump.connect(this.mfilt);
-    this.delay = c.createDelay(1); this.delay.delayTime.value = .3; const fb = c.createGain(); fb.gain.value = .32;
-    const dl = c.createBiquadFilter(); dl.type = 'lowpass'; dl.frequency.value = 3000;
+    /* synth bus: section filter + sidechain pump */
+    this.secF = c.createBiquadFilter(); this.secF.type = 'lowpass'; this.secF.frequency.value = 18000; this.secF.Q.value = 1.2;
+    this.pump = c.createGain(); this.pump.connect(this.secF); this.secF.connect(this.mfilt);
+    /* tempo delay for leads */
+    this.delay = c.createDelay(1.5); const fb = c.createGain(); fb.gain.value = .35;
+    const dl = c.createBiquadFilter(); dl.type = 'lowpass'; dl.frequency.value = 3200;
     this.delay.connect(dl).connect(fb).connect(this.delay); dl.connect(this.pump);
     this.sfx = c.createGain(); this.sfx.gain.value = .9; this.sfx.connect(this.master);
-    // rolling ball rumble
+    /* vinyl hiss for the lounge */
+    const hs = c.createBufferSource(); hs.buffer = nb; hs.loop = true;
+    this.hissG = c.createGain(); this.hissG.gain.value = 0;
+    hs.connect(this.filt('bandpass', 5000, .5, this.hissG)); this.hissG.connect(this.mfilt); hs.start();
+    /* rolling ball rumble */
     const rn = c.createBufferSource(); rn.buffer = nb; rn.loop = true;
     this.rollF = c.createBiquadFilter(); this.rollF.type = 'lowpass'; this.rollF.frequency.value = 200;
     this.rollG = c.createGain(); this.rollG.gain.value = 0;
@@ -1169,84 +1213,202 @@ const AU = {
     ro.connect(this.rollO).connect(this.sfx); ro.start();
     this.nextT = c.currentTime + .1; this.ready = true;
     setInterval(() => this.tick(), 25);
-    this.setTrack(this.ti, true);
+    this.startTrack(this.ti, false);
+  },
+  impulse(sec, decay) {
+    const c = this.ctx, n = Math.floor(c.sampleRate * sec), b = c.createBuffer(2, n, c.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, decay); }
+    return b;
   },
   resume() { if (this.ctx && this.ctx.state !== 'running') this.ctx.resume(); },
-  setOn(v) { this.on = v; if (this.master) this.master.gain.setTargetAtTime(v ? .9 : 0, this.ctx.currentTime, .05); },
+  setOn(v) { this.on = v; if (this.master) this.master.gain.setTargetAtTime(v ? .68 : 0, this.ctx.currentTime, .05); },
+  /* switch track. now=true drops in immediately on bar 1 (with a crash); otherwise waits for the next bar */
   setTrack(i, now) {
     i = clamp(i | 0, 0, TRACKS.length - 1);
-    if (now || !this.ready) { this.ti = i; this.applyTrack(); } else this.pendingTi = i;
+    if (!this.ready) { this.ti = i; return; }
+    if (now && this.trT && i !== this.trI) { clearTimeout(this.trT); this.trT = 0; this.holdUntil = 0; }
+    if (this.trT && i === this.trI) return;
+    if (i === this.ti && this.pendingTi === null) return;
+    if (now) this.startTrack(i, true); else this.pendingTi = i;
   },
-  applyTrack() { if (!this.ready) return; const T = TRACKS[this.ti], t = this.ctx.currentTime; this.mgain.gain.setTargetAtTime(T.vol, t, .3); this.setMuffle(this.muffled); this.delay.delayTime.value = 60 / T.bpm * .75; },
-  muffled: false,
-  setMuffle(m) { this.muffled = m; if (!this.ready) return; const T = TRACKS[this.ti]; this.mfilt.frequency.setTargetAtTime(m ? 700 : T.cut + this.intensity * 6000, this.ctx.currentTime, .25); },
-  setIntensity(x) { this.intensity = x; this.setMuffle(this.muffled); },
+  startTrack(i, crash) {
+    this.ti = i; this.pendingTi = null; this.step = 0; this.bar = 0;
+    if (!this.ready) return;
+    const t = this.ctx.currentTime, T = TRACKS[i];
+    this.nextT = Math.max(this.nextT > t + .3 ? t + .05 : this.nextT, t + .03);
+    this.mgain.gain.cancelScheduledValues(t); this.mgain.gain.setTargetAtTime(T.vol, t, .05);
+    this.delay.delayTime.value = 60 / T.bpm * .75;
+    this.hissG.gain.setTargetAtTime(T.style === 'chill' ? .012 : 0, t, .3);
+    this.setMuffle(this.muffled);
+    if (crash && T.style !== 'chill') { this.crashCym(this.nextT, .5); this.kickBoom(this.nextT); }
+  },
+  /* the glitch: power the lounge down, then slam into the neon track */
+  transition(i, dur = .9) {
+    if (!this.ready) { this.ti = i; return; }
+    const t = this.ctx.currentTime;
+    this.mfilt.frequency.cancelScheduledValues(t); this.mfilt.frequency.setValueAtTime(this.mfilt.frequency.value, t);
+    this.mfilt.frequency.exponentialRampToValueAtTime(160, t + dur * .8);
+    this.mgain.gain.cancelScheduledValues(t); this.mgain.gain.setValueAtTime(this.mgain.gain.value, t); this.mgain.gain.linearRampToValueAtTime(.0001, t + dur);
+    this.holdUntil = t + dur; this.riser(dur);
+    clearTimeout(this.trT); this.trI = i; this.trT = setTimeout(() => { this.trT = 0; this.holdUntil = 0; this.startTrack(i, true); }, dur * 1000);
+  },
+  setMuffle(m) {
+    this.muffled = m; if (!this.ready) return;
+    const T = TRACKS[this.ti], t = this.ctx.currentTime;
+    this.mfilt.frequency.cancelScheduledValues(t);
+    this.mfilt.frequency.setTargetAtTime(m ? 650 : T.cut, t, .2);
+  },
+  setIntensity(x) { this.intensity = x; },
   beat() { if (!this.ready) return 0; const t = this.ctx.currentTime; while (this.kicks.length && this.kicks[0] <= t) this.lastKick = this.kicks.shift(); return Math.exp(-(t - this.lastKick) * 7); },
+  section() {
+    const T = TRACKS[this.ti];
+    if (T.style === 'chill') return 'groove';
+    if (this.intensity > .5) return 'drop';
+    const b = this.bar % 28; return b < 16 ? 'drop' : b < 24 ? 'break' : 'build';
+  },
   tick() {
     const c = this.ctx; if (!c || c.state !== 'running') { if (c) this.nextT = c.currentTime + .05; return; }
+    if (this.holdUntil && c.currentTime < this.holdUntil) { this.nextT = Math.max(this.nextT, c.currentTime); }
     while (this.nextT < c.currentTime + .14) {
-      if (this.pendingTi !== null && this.step % 16 === 0) { this.ti = this.pendingTi; this.pendingTi = null; this.applyTrack(); }
-      this.play(this.step, this.nextT);
+      if (this.step % 16 === 0 && this.step > 0) this.bar++;
+      if (this.pendingTi !== null && this.step % 16 === 0) { const p = this.pendingTi; this.startTrack(p, true); }
+      if (!(this.holdUntil && this.nextT < this.holdUntil)) this.play(this.step, this.nextT);
       this.nextT += 60 / TRACKS[this.ti].bpm / 4; this.step++;
     }
   },
   play(s, t) {
-    const T = TRACKS[this.ti], i = s % 16, bar = Math.floor(s / 16) % 4, sc = SCALES[T.sc];
-    const deg = T.prog[bar], note = k => T.root + sc[(deg + k) % 7] + 12 * Math.floor((deg + k) / 7);
-    const chord = [note(0), note(2), note(4), note(0) + 12];
-    const sd = 60 / T.bpm / 4, I = this.intensity;
-    if (T.k[i] === 'x') { this.kick(t, .95 * T.kv); this.kicks.push(t); this.pumpAt(t, sd * 3.2); }
-    if (T.c[i] === 'x') this.clap(t, .5 * T.kv);
-    if (T.h && T.h[i] === 'x') this.hat(t, .16, true);
-    if (T.hh && T.hh[i] === 'x' && (I > .3 || i % 2 === 0 || T.hh === 'xxxxxxxxxxxxxxxx')) this.hat(t, .07 + (i % 4 === 2 ? .03 : 0), false);
+    const T = TRACKS[this.ti], i = s % 16, sc = SCALES[T.sc], sd = 60 / T.bpm / 4, I = this.intensity;
+    const sec = this.section(), barIn = this.bar % 28;
+    const deg = T.prog[this.bar % 4], note = k => T.root + sc[(deg + k) % 7] + 12 * Math.floor((deg + k) / 7);
+    const chord = [note(0), note(2), note(4), note(0) + 12, note(2) + 12];
+    if (T.swing && i % 2 === 1) t += sd * T.swing;
+    const chill = T.style === 'chill';
+    /* section filter on the synth bus */
+    if (i === 0 && !chill) {
+      const f = this.secF.frequency; f.cancelScheduledValues(t);
+      if (sec === 'break') f.setTargetAtTime(1300, t, .4);
+      else if (sec === 'build') { const b = barIn - 24; f.setValueAtTime(1300 + b * 2500, t); f.exponentialRampToValueAtTime(Math.min(18000, 1300 + (b + 1) * 4200), t + sd * 16); }
+      else f.setTargetAtTime(18000, t, .02);
+      if (sec === 'build' && barIn === 24) this.riserAt(t, sd * 64);
+      if (sec === 'drop' && barIn === 0 && this.bar > 0) { this.crashCym(t, .4); }
+    }
+    const drop = sec === 'drop', brk = sec === 'break', build = sec === 'build';
+    const lastBeatGap = build && barIn === 27 && i >= 12;
+    /* drums */
+    if (T.k[i] === 'x' && (drop || chill || (build && barIn < 27))) { this.kick(t, chill ? .55 : 1); this.kicks.push(t); this.pumpAt(t, sd * 3.4, chill ? .7 : .25); }
+    if (T.c[i] === 'x' && (drop || chill)) this.clap(t, chill ? .22 : .5, chill);
+    if (build && !lastBeatGap) {
+      const b = barIn - 24, every = [4, 2, 1, 1][b];
+      if (i % every === 0) this.snare(t, .12 + (b * 16 + i) / 64 * .4);
+    }
+    if (T.hh[i] === 'x' && (drop || chill || (build && barIn >= 26)) && !lastBeatGap) this.hat(t, chill ? .05 : .06 + (i % 4 === 2 ? .03 : 0), false, i);
+    if (T.oh && T.oh[i] === 'x' && (drop || brk) && !lastBeatGap) this.hat(t, brk ? .06 : .13, true, i);
+    if (I > .5 && i % 2 === 1 && drop) this.hat(t, .05, false, i);
+    /* bass */
     const bc = T.b[i];
-    if (bc && bc !== '.') { const n = chord[0] - 12 + (bc === 'o' ? 12 : bc === '5' ? 7 : 0); this.bass(t, n, sd * (T.bass === 'reese' ? 7 : 1.6), T.bass); }
-    if (T.a && T.a[i] && T.a[i] !== '.') this.lead(t, chord[+T.a[i]] + 12, sd * 1.5, T.lead);
-    if (T.pad && i === 0) this.pad(t, chord.slice(0, 3), sd * 16, T.pad * .09);
-    if (I > .4 && (i === 2 || i === 6 || i === 10 || i === 14)) this.stab(t, chord, sd, .05 * I);
-    if (T.bass === 'acid') this.acid = (Math.sin(s / 32) * .5 + .5);
+    if (bc && bc !== '.' && (drop || chill || (build && barIn < 27))) {
+      const n = chord[0] - 12 + (bc === 'o' ? 12 : bc === '5' ? 7 : 0);
+      this.bass(t, n, sd * (T.style === 'dnb' ? 7 : chill ? 5 : 1.7), T.style);
+    }
+    if (brk && i === 0) this.bass(t, chord[0] - 12, sd * 15, 'sub');
+    /* chords */
+    if (chill) { if (i === 0 || i === 6) this.keys(t, chord.slice(0, 4), sd * (i === 0 ? 6 : 9), .06); }
+    else if (brk && i === 0) this.saw(t, chord.slice(0, 4), sd * 16, .045, true);
+    else if (build && i === 0) this.saw(t, chord.slice(0, 4), sd * 16, .03, true);
+    else if (drop && T.stab && T.stab[i] === 'x') this.saw(t, chord.slice(0, 4), sd * (T.style === 'trance' ? .9 : 1.6), .05 + I * .02, false);
+    if (drop && T.style === 'dnb' && i === 0) this.saw(t, chord.slice(0, 3), sd * 16, .03, true);
+    /* lead melody */
+    const lc = T.lead[i];
+    if (lc && lc !== '.') {
+      const m = chord[+lc] + (chill ? 12 : 12);
+      if (chill) this.bell(t, m, .05);
+      else if (drop) this.pluck(t, m, sd * 1.6, .07 + I * .02);
+      else if (brk && i % 4 === 0) this.bell(t, m + 12, .05);
+    }
+    if (chill && Math.random() < .08) this.crackle(t + Math.random() * sd);
   },
-  env(g, t, a, peak, dec, sus = .0001) { g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(Math.max(sus, .0001), t + a + dec); },
+  /* ---------- building blocks ---------- */
+  env(g, t, a, peak, dec, sus = .0001) { g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(peak, .0002), t + a); g.gain.exponentialRampToValueAtTime(Math.max(sus, .0001), t + a + dec); },
   osc(type, f, t, dur, dest) { const o = this.ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f, t); o.connect(dest); o.start(t); o.stop(t + dur + .05); return o; },
-  noise(t, dur, dest) { const n = this.ctx.createBufferSource(); n.buffer = this.noiseBuf; n.connect(dest); n.start(t, Math.random() * .5); n.stop(t + dur); return n; },
+  noise(t, dur, dest) { const n = this.ctx.createBufferSource(); n.buffer = this.noiseBuf; n.connect(dest); n.start(t, Math.random() * 1.2); n.stop(t + dur); return n; },
   gain(dest, v = 1) { const g = this.ctx.createGain(); g.gain.value = v; g.connect(dest); return g; },
   filt(type, f, q, dest) { const b = this.ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; b.connect(dest); return b; },
-  pumpAt(t, len) { const g = this.pump.gain; g.cancelScheduledValues(t); g.setValueAtTime(.3, t); g.linearRampToValueAtTime(1, t + len); },
-  kick(t, v) { const g = this.gain(this.drums, 0); const o = this.osc('sine', 160, t, .5, g); o.frequency.exponentialRampToValueAtTime(42, t + .11); this.env(g, t, .002, v, .42); },
-  clap(t, v) {
-    const g = this.gain(this.drums, 0), f = this.filt('bandpass', 1600, 1.2, g); this.noise(t, .25, f);
-    g.gain.setValueAtTime(.0001, t); for (let k = 0; k < 3; k++) { g.gain.setValueAtTime(v, t + k * .011); g.gain.exponentialRampToValueAtTime(v * .2, t + k * .011 + .009); }
-    g.gain.exponentialRampToValueAtTime(.0001, t + .2);
+  pan(dest, p) { if (!this.ctx.createStereoPanner) return dest; const s = this.ctx.createStereoPanner(); s.pan.value = p; s.connect(dest); return s; },
+  send(g, amt) { const s = this.gain(this.verbIn, amt); g.connect(s); },
+  pumpAt(t, len, depth) { const g = this.pump.gain; g.cancelScheduledValues(t); g.setValueAtTime(depth, t); g.linearRampToValueAtTime(1, t + len); },
+  kick(t, v) {
+    const g = this.gain(this.drums, 0); const o = this.osc('sine', 190, t, .5, g);
+    o.frequency.exponentialRampToValueAtTime(48, t + .09); this.env(g, t, .002, v, .45);
+    const cg = this.gain(this.drums, 0); this.noise(t, .02, this.filt('highpass', 3000, .7, cg)); this.env(cg, t, .0005, v * .35, .012);
   },
-  hat(t, v, open) { const g = this.gain(this.drums, 0), f = this.filt('highpass', open ? 7000 : 9000, .7, g); this.noise(t, open ? .3 : .06, f); this.env(g, t, .001, v, open ? .22 : .04); },
-  bass(t, m, dur, kind) {
-    const g = this.gain(this.pump, 0), f = this.filt('lowpass', 300, kind === 'acid' ? 13 : 2, g);
-    const fq = mtof(m);
-    if (kind === 'sub') { this.osc('triangle', fq, t, dur, f); f.frequency.value = 900; this.env(g, t, .01, .35, dur); return; }
-    if (kind === 'reese') { this.osc('sawtooth', fq * 1.006, t, dur, f); this.osc('sawtooth', fq * .994, t, dur, f); this.osc('sine', fq / 2, t, dur, g); f.frequency.setValueAtTime(380, t); f.frequency.linearRampToValueAtTime(700, t + dur * .5); f.frequency.linearRampToValueAtTime(380, t + dur); this.env(g, t, .02, .28, dur * .9, .15); return; }
-    const o = this.osc(kind === 'acid' ? 'square' : 'sawtooth', fq, t, dur, f);
-    const top = kind === 'acid' ? 500 + this.acid * 2600 : 1400;
-    f.frequency.setValueAtTime(top, t); f.frequency.exponentialRampToValueAtTime(220, t + dur);
-    this.env(g, t, .004, kind === 'acid' ? .2 : .3, dur);
+  kickBoom(t) { const g = this.gain(this.drums, 0); const o = this.osc('sine', 120, t, 1.6, g); o.frequency.exponentialRampToValueAtTime(32, t + 1.2); this.env(g, t, .003, .9, 1.4); this.send(g, .2); },
+  clap(t, v, soft) {
+    const g = this.gain(this.drums, 0), f = this.filt('bandpass', soft ? 2200 : 1500, soft ? 2 : 1.1, g); this.noise(t, .3, f);
+    g.gain.setValueAtTime(.0001, t); for (let k = 0; k < 3; k++) { g.gain.setValueAtTime(v, t + k * .01); g.gain.exponentialRampToValueAtTime(v * .2, t + k * .01 + .008); }
+    g.gain.exponentialRampToValueAtTime(.0001, t + (soft ? .1 : .22)); this.send(g, soft ? .3 : .45);
   },
-  lead(t, m, dur, kind) {
-    const g = this.gain(this.pump, 0); const fq = mtof(m);
-    const send = this.gain(this.delay, .35); g.connect(send);
-    if (kind === 'keys') { this.osc('sine', fq, t, .5, g); this.osc('triangle', fq * 2, t, .3, this.gain(g, .2)); this.env(g, t, .005, .1, .45); return; }
-    if (kind === 'bell') { this.osc('sine', fq * 2, t, .6, g); this.osc('sine', fq * 5.02, t, .3, this.gain(g, .25)); this.env(g, t, .002, .09, .55); return; }
-    const f = this.filt('lowpass', 3500, 4, g); this.osc('sawtooth', fq, t, dur, f); this.osc('square', fq * 1.005, t, dur, f);
-    f.frequency.setValueAtTime(4500, t); f.frequency.exponentialRampToValueAtTime(500, t + dur);
-    this.env(g, t, .003, .07, dur);
+  snare(t, v) {
+    const g = this.gain(this.drums, 0); this.noise(t, .15, this.filt('bandpass', 2400, .8, g)); this.env(g, t, .001, v, .1);
+    const g2 = this.gain(this.drums, 0); this.osc('triangle', 210, t, .1, g2); this.env(g2, t, .001, v * .6, .07); this.send(g, .25);
   },
-  pad(t, notes, dur, v) {
-    const g = this.gain(this.pump, 0), f = this.filt('lowpass', 1500, .8, g);
-    for (const m of notes) { this.osc('sawtooth', mtof(m) * 1.004, t, dur, f); this.osc('sawtooth', mtof(m) * .996, t, dur, f); }
-    g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(v, t + .35); g.gain.setValueAtTime(v, t + dur - .3); g.gain.linearRampToValueAtTime(.0001, t + dur);
+  hat(t, v, open, i) {
+    const g = this.gain(this.pan(this.drums, i % 4 === 2 ? .25 : -.2), 0), f = this.filt('highpass', open ? 7500 : 9500, .7, g);
+    this.noise(t, open ? .3 : .05, f); this.env(g, t, .001, v, open ? .22 : .035);
   },
-  stab(t, chord, sd, v) {
-    const g = this.gain(this.pump, 0), f = this.filt('lowpass', 5000, 1, g);
-    for (const m of chord.slice(0, 3)) for (const d of [-.01, 0, .01]) this.osc('sawtooth', mtof(m + 12) * (1 + d), t, sd, f);
-    this.env(g, t, .004, v, sd * 1.2);
+  crashCym(t, v) { const g = this.gain(this.drums, 0); this.noise(t, 2.6, this.filt('highpass', 5000, .4, g)); this.env(g, t, .002, v, 2.3); this.send(g, .5); },
+  crackle(t) { const g = this.gain(this.mfilt, 0); this.noise(t, .01, this.filt('highpass', 2000, 1, g)); this.env(g, t, .0005, .05 + Math.random() * .05, .006); },
+  bass(t, m, dur, style) {
+    const fq = mtof(m), g = this.gain(this.pump, 0);
+    if (style === 'chill' || style === 'sub') { this.osc('sine', fq, t, dur, g); this.osc('triangle', fq * 2, t, dur, this.gain(g, .12)); this.env(g, t, .01, style === 'sub' ? .22 : .32, dur * .9); return; }
+    this.osc('sine', fq, t, dur, this.gain(g, .7));
+    if (style === 'dnb') {
+      const f = this.filt('lowpass', 400, 4, g); this.osc('sawtooth', fq * 1.007, t, dur, f); this.osc('sawtooth', fq * .993, t, dur, f);
+      f.frequency.setValueAtTime(300, t); f.frequency.linearRampToValueAtTime(900, t + dur * .5); f.frequency.linearRampToValueAtTime(300, t + dur);
+      this.env(g, t, .02, .3, dur * .9, .18); return;
+    }
+    const acid = style === 'acid', f = this.filt('lowpass', 300, acid ? 14 : 3, g);
+    this.osc(acid ? 'square' : 'sawtooth', fq, t, dur, f);
+    if (!acid) this.osc('sawtooth', fq * 1.01, t, dur, f);
+    const top = acid ? 500 + (Math.sin(this.bar / 2 + this.step / 40) * .5 + .5) * 2800 : style === 'trance' ? 1100 : 1700;
+    f.frequency.setValueAtTime(top, t); f.frequency.exponentialRampToValueAtTime(200, t + dur);
+    this.env(g, t, .004, acid ? .22 : .3, dur);
+  },
+  saw(t, notes, dur, v, pad) {
+    const g = this.gain(this.pump, 0), f = this.filt('lowpass', pad ? 2400 : 5200, pad ? .8 : 1.5, g);
+    const det = [-.018, -.007, 0, .007, .018];
+    for (const m of notes) det.forEach((d, j) => this.osc('sawtooth', mtof(m + 12) * (1 + d), t, dur, this.pan(f, (j - 2) * .3)));
+    if (pad) { g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(v, t + dur * .25); g.gain.setValueAtTime(v, t + dur * .8); g.gain.linearRampToValueAtTime(.0001, t + dur); }
+    else { f.frequency.setValueAtTime(6000, t); f.frequency.exponentialRampToValueAtTime(1400, t + dur); this.env(g, t, .004, v, dur); }
+    this.send(g, pad ? .5 : .2);
+  },
+  pluck(t, m, dur, v) {
+    const g = this.gain(this.pump, 0), f = this.filt('lowpass', 4000, 3, g), fq = mtof(m);
+    this.osc('sawtooth', fq, t, dur, f); this.osc('square', fq * 1.006, t, dur, f);
+    f.frequency.setValueAtTime(5500, t); f.frequency.exponentialRampToValueAtTime(600, t + dur);
+    this.env(g, t, .003, v, dur); g.connect(this.gain(this.delay, .4)); this.send(g, .2);
+  },
+  bell(t, m, v) {
+    const g = this.gain(this.pump, 0), fq = mtof(m);
+    this.osc('sine', fq * 2, t, 1, g); this.osc('sine', fq * 5.01, t, .4, this.gain(g, .2));
+    this.env(g, t, .002, v, .9); g.connect(this.gain(this.delay, .35)); this.send(g, .45);
+  },
+  keys(t, notes, dur, v) {
+    /* FM electric piano */
+    for (const m of notes) {
+      const fq = mtof(m), g = this.gain(this.pump, 0);
+      const car = this.ctx.createOscillator(); car.frequency.value = fq;
+      const mod = this.ctx.createOscillator(); mod.frequency.value = fq; const mg = this.ctx.createGain();
+      mg.gain.setValueAtTime(fq * 1.6, t); mg.gain.exponentialRampToValueAtTime(fq * .1, t + .5);
+      mod.connect(mg).connect(car.frequency); car.connect(g);
+      car.start(t); mod.start(t); car.stop(t + dur + .1); mod.stop(t + dur + .1);
+      this.env(g, t, .006, v, dur, v * .02); this.send(g, .3);
+    }
+  },
+  riserAt(t, dur) {
+    const g = this.gain(this.sfx, 0), f = this.filt('bandpass', 300, 3, g); this.noise(t, dur + .1, f);
+    f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(7000, t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.22, t + dur); g.gain.exponentialRampToValueAtTime(.0001, t + dur + .08);
+    this.send(g, .4);
   },
   /* ---------- sound effects ---------- */
   roll(speed, inGutter) {
@@ -1279,18 +1441,14 @@ const AU = {
     const seq = kind === 'strike' ? [0, 2, 4, 7, 9, 11, 14] : kind === 'turkey' ? [0, 4, 7, 11, 14, 18, 21, 25] : kind === 'spare' ? [0, 4, 7] : [7, 4, 0];
     seq.forEach((k, j) => {
       const m = T.root + 24 + sc[k % 7] + 12 * Math.floor(k / 7), tt = t + j * (kind === 'miss' ? .12 : .055);
-      const g = this.gain(this.sfx, 0); this.osc(kind === 'miss' ? 'triangle' : 'square', mtof(m), tt, .25, this.filt('lowpass', 4000, 1, g)); this.env(g, tt, .003, kind === 'miss' ? .12 : .09, .22);
+      const g = this.gain(this.sfx, 0); this.osc(kind === 'miss' ? 'triangle' : 'square', mtof(m), tt, .25, this.filt('lowpass', 4000, 1, g)); this.env(g, tt, .003, kind === 'miss' ? .12 : .09, .22); this.send(g, .25);
     });
   },
-  riser(dur) {
-    if (!this.ready) return; const t = this.ctx.currentTime;
-    const g = this.gain(this.sfx, 0), f = this.filt('bandpass', 300, 3, g); this.noise(t, dur + .1, f);
-    f.frequency.exponentialRampToValueAtTime(6000, t + dur); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.3, t + dur); g.gain.exponentialRampToValueAtTime(.0001, t + dur + .1);
-  },
+  riser(dur) { if (this.ready) this.riserAt(this.ctx.currentTime, dur); },
   shatter() {
     if (!this.ready) return; const t = this.ctx.currentTime;
-    const g = this.gain(this.sfx, 0), f = this.filt('highpass', 1200, .5, g); this.noise(t, 2, f); this.env(g, t, .002, .6, 1.8);
-    for (let k = 0; k < 14; k++) { const tt = t + Math.random() * .9, g2 = this.gain(this.sfx, 0); this.osc('sine', 2200 + Math.random() * 4500, tt, .3, g2); this.env(g2, tt, .001, .06 + Math.random() * .06, .25); }
+    const g = this.gain(this.sfx, 0), f = this.filt('highpass', 1200, .5, g); this.noise(t, 2, f); this.env(g, t, .002, .6, 1.8); this.send(g, .4);
+    for (let k = 0; k < 14; k++) { const tt = t + Math.random() * .9, g2 = this.gain(this.sfx, 0); this.osc('sine', 2200 + Math.random() * 4500, tt, .3, g2); this.env(g2, tt, .001, .06 + Math.random() * .06, .25); this.send(g2, .5); }
     this.boom(.9);
   },
   warp(dur = 2.2) {
@@ -1302,8 +1460,7 @@ const AU = {
   },
   glitch() {
     if (!this.ready) return; const t = this.ctx.currentTime;
-    for (let k = 0; k < 6; k++) { const tt = t + k * .07, g = this.gain(this.sfx, 0); this.osc('square', 100 + Math.random() * 1500, tt, .06, g); this.env(g, tt, .001, .1, .05); }
-    this.boom(.4);
+    for (let k = 0; k < 8; k++) { const tt = t + k * .06, g = this.gain(this.sfx, 0); this.osc('square', 80 + Math.random() * 1800, tt, .05, g); this.env(g, tt, .001, .09, .04); }
   },
   chip(k = 0) { if (!this.ready) return; const t = this.ctx.currentTime, g = this.gain(this.sfx, 0); const o = this.osc('sine', 1800 + k * 40, t, .12, g); o.frequency.exponentialRampToValueAtTime(2600 + k * 40, t + .06); this.env(g, t, .001, .08, .1); },
   click() { if (!this.ready) return; const t = this.ctx.currentTime, g = this.gain(this.sfx, 0); this.osc('square', 1400, t, .04, this.filt('lowpass', 3000, 1, g)); this.env(g, t, .001, .05, .03); },
@@ -1960,7 +2117,7 @@ function startGame() {
   beginAim(true); CAM.wEye = [0, 1.6, -5.5]; camSnap(); camAim();
 }
 function dropToDarkZone() {
-  AU.glitch(); AU.setTrack(1, true); VIS.dimB = 1;
+  AU.glitch(); AU.transition(1, .9); VIS.dimB = 1;
   tween(1.5, k => { VIS.real = 1 - smooth(0, 1, k); VIS.dimMix = smooth(.1, .9, k); VIS.glitch = Math.sin(k * Math.PI) * .9; VIS.aberr = Math.sin(k * Math.PI) * 2; }, () => {
     VIS.dimA = 1; VIS.dimMix = 0; VIS.glitch = 0; VIS.aberr = 0; setDim(1, true); UI.dimCard(1);
   });
@@ -2732,12 +2889,25 @@ function inputInit() {
   cv.addEventListener('webglcontextlost', e => { e.preventDefault(); }, false);
   cv.addEventListener('webglcontextrestored', () => location.reload(), false);
 }
-function drawSwipe() {
+let safeTop = 0, credMode = '';
+function drawCredit(c, k) {
+  /* ownership credit, drawn into the canvas: bottom-left on the title screen, faint across the top in play */
+  const mode = !$('menu').classList.contains('hide') ? 'menu' : (G.mode === 'game' || G.mode === 'mini') ? 'game' : '';
+  credMode = mode; if (!mode) return;
+  const txt = '\u00a9 2026 Ben Stiff @ Room46.uk';
+  c.save(); c.shadowBlur = 0;
+  if (mode === 'menu') { c.font = `600 ${9 * k}px system-ui,sans-serif`; c.textAlign = 'left'; c.textBaseline = 'bottom'; c.fillStyle = 'rgba(234,246,255,.38)'; c.fillText(txt, 10 * k, f_h(c) - Math.max(5, safeBottom()) * k); }
+  else { c.font = `600 ${8 * k}px system-ui,sans-serif`; c.textAlign = 'center'; c.textBaseline = 'top'; c.fillStyle = 'rgba(234,246,255,.2)'; c.fillText(txt, c.canvas.width / 2, (safeTop + 2) * k); }
+  c.restore();
+}
+const f_h = c => c.canvas.height;
+let _sb = null; const safeBottom = () => { if (_sb === null) { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom)'; document.body.appendChild(p); _sb = p.offsetHeight; p.remove(); } return _sb; };
+function drawOverlay() {
   const f = $('fx'), c = f.getContext('2d'), now = performance.now();
   SW.pts = SW.pts.filter(p => now - p[2] < 380);
   const live = SW.live && SW.live.length > 1;
-  if (!SW.pts.length && !live && !SW.dirty) return;
-  const k = f.width / innerWidth; c.clearRect(0, 0, f.width, f.height); SW.dirty = SW.pts.length > 0 || live;
+  const k = f.width / innerWidth; c.clearRect(0, 0, f.width, f.height);
+  drawCredit(c, k);
   const pts = live ? SW.live : SW.pts; if (pts.length < 2) return;
   const hot = live && G.drawing ? smooth(.8, 1, G.power) : 0;
   const B = LOOK.lane.B, col = [lerp(B[0], 1, hot), lerp(B[1], .85, hot), lerp(B[2], .25, hot)];
@@ -2749,7 +2919,7 @@ function drawSwipe() {
   }
 }
 
-let last = performance.now(), T = 0, slowAcc = 0, perfT = 0;
+let errRun = 0, last = performance.now(), T = 0, slowAcc = 0, perfT = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   const raw = (now - last) / 1000, dt = Math.min(.05, raw); last = now;
@@ -2765,15 +2935,22 @@ function frame(now) {
     camUpdate(dt);
     resize();
     render(T, G.paused ? 0 : dt);
-    drawSwipe();
+    drawOverlay();
     /* adaptive resolution: keep it smooth on older phones */
     perfT += raw;
     if (raw > 1 / 42) slowAcc += raw; else slowAcc = Math.max(0, slowAcc - raw * .5);
     if (perfT > 3 && slowAcc > 1.2 && RT.scale > .55) { RT.scale -= .15; W = 0; slowAcc = 0; perfT = 0; }
-  } catch (e) { fatal(e); throw e; }
+    errRun = 0;
+  } catch (e) { console.error(e); if (++errRun === 45 && !$('err')) fatal(e); }
 }
 function boot() {
   try {
+    document.documentElement.dataset.build = VERSION_TAG;
+    if (LOCK_HOST && location.protocol !== 'file:' && !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && location.hostname !== LOCK_HOST) {
+      document.body.innerHTML = `<div style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#05030c;color:#eaf6ff;font:600 15px system-ui;text-align:center;padding:24px"><div style="font:900 italic 34px system-ui;color:#ff2bd6;text-shadow:0 0 18px #ff2bd6">NEON STRIKE</div><div>This is an unofficial copy.</div>${HOME_URL ? `<a style="color:#2ef3ff" href="${HOME_URL}">Play the real one at ${HOME_URL.replace(/^https?:\/\//, '')}</a>` : ''}<div style="opacity:.5;font-size:11px">\u00a9 2026 Ben Stiff @ Room46.uk</div></div>`;
+      return;
+    }
+    safeTop = $('safeProbe').offsetHeight;
     SAVE.load(); AU.on = SAVE.data.sound; applyLook();
     initRender(); wireUI(); inputInit();
     $('ver').textContent = 'v' + VERSION;
